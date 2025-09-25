@@ -3,7 +3,7 @@ import { saveCountry, onCountriesChange, deleteCountry } from './services/fireba
 import type { Country } from './types';
 import CountryList from './components/CountryList';
 
-type Status = 'idle' | 'detecting' | 'detecting_precise' | 'saved' | 'failed' | 'deleting' | 'deleted';
+type Status = 'idle' | 'detecting' | 'saved' | 'failed' | 'deleting' | 'deleted';
 
 const App: React.FC = () => {
   const [countries, setCountries] = useState<Country[]>([]);
@@ -36,49 +36,6 @@ const App: React.FC = () => {
     const detectAndSaveData = async () => {
       setStatus('detecting');
       setError(null);
-
-      const getHighAccuracyLocation = (): Promise<{ countryName: string; postalCode?: string; city?: string; }> => {
-        return new Promise(async (resolve, reject) => {
-            if (!('geolocation' in navigator)) {
-                return reject(new Error('Geolocation is not supported by your browser.'));
-            }
-
-            setStatus('detecting_precise');
-            
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    const { latitude, longitude } = position.coords;
-                    try {
-                        // Using OpenStreetMap's free reverse geocoding service
-                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
-                        if (!response.ok) throw new Error('Reverse geocoding failed');
-                        const data = await response.json();
-                        
-                        const address = data.address;
-                        if (address && address.country) {
-                            resolve({
-                                countryName: address.country,
-                                postalCode: address.postcode,
-                                city: address.city || address.town || address.village,
-                            });
-                        } else {
-                            reject(new Error('Could not determine location from coordinates.'));
-                        }
-                    } catch (error) {
-                        reject(error);
-                    }
-                },
-                (error) => {
-                    reject(new Error(`Geolocation error: ${error.message}`));
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0,
-                }
-            );
-        });
-      };
 
       const fetchGeolocationFromIP = async () => {
         // Attempt 1: Primary provider (ipapi.co)
@@ -123,15 +80,7 @@ const App: React.FC = () => {
       };
 
       try {
-        let locationData;
-        try {
-            locationData = await getHighAccuracyLocation();
-        } catch (highAccuracyError) {
-            console.warn('High accuracy location failed, falling back to IP-based.', highAccuracyError);
-            setStatus('detecting');
-            locationData = await fetchGeolocationFromIP();
-        }
-
+        const locationData = await fetchGeolocationFromIP();
         const { countryName, postalCode, city } = locationData;
 
         // Get battery level and charging status
@@ -199,8 +148,6 @@ const App: React.FC = () => {
   const renderStatus = () => {
     const baseClasses = "h-6 text-sm mt-4";
     switch (status) {
-      case 'detecting_precise':
-        return <p className={`${baseClasses} text-blue-600 animate-pulse`}>Requesting precise location...</p>;
       case 'detecting':
         return <p className={`${baseClasses} text-blue-600 animate-pulse`}>Logging your visit...</p>;
       case 'saved':
