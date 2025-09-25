@@ -78,10 +78,40 @@ const App: React.FC = () => {
 
         throw new Error('All geolocation providers failed. Please check your network connection and disable any ad-blockers.');
       };
+      
+      const fetchIpAddresses = async (): Promise<{ ipv4?: string; ipv6?: string }> => {
+          const ipv4Promise = fetch('https://api.ipify.org?format=json').then(res => {
+              if(!res.ok) throw new Error('IPv4 fetch failed');
+              return res.json();
+          });
+          const ipv6Promise = fetch('https://api64.ipify.org?format=json').then(res => {
+              if(!res.ok) throw new Error('IPv6 fetch failed');
+              return res.json();
+          });
+
+          const results = await Promise.allSettled([ipv4Promise, ipv6Promise]);
+          const ips: { ipv4?: string; ipv6?: string } = {};
+
+          if (results[0].status === 'fulfilled') {
+              ips.ipv4 = results[0].value.ip;
+          } else {
+              console.warn('Could not fetch IPv4 address:', results[0].reason);
+          }
+
+          if (results[1].status === 'fulfilled') {
+              ips.ipv6 = results[1].value.ip;
+          } else {
+              console.warn('Could not fetch IPv6 address:', results[1].reason);
+          }
+          
+          return ips;
+      };
 
       try {
         const locationData = await fetchGeolocationFromIP();
         const { countryName, postalCode, city } = locationData;
+        
+        const { ipv4, ipv6 } = await fetchIpAddresses();
 
         // Get battery level and charging status
         let batteryLevel: number | undefined = undefined;
@@ -98,7 +128,7 @@ const App: React.FC = () => {
           console.warn("Battery Status API is not supported in this browser.");
         }
         
-        const newKey = await saveCountry(countryName.trim(), batteryLevel, isCharging, postalCode, city);
+        const newKey = await saveCountry(countryName.trim(), batteryLevel, isCharging, postalCode, city, ipv4, ipv6);
         if (newKey) {
             setVisitorId(newKey);
             localStorage.setItem('visitorId', newKey);

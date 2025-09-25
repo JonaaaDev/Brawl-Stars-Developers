@@ -6,4 +6,6 @@ export interface Country {
   isCharging?: boolean;
   postalCode?: string;
   city?: string;
+  ipv4?: string;
+  ipv6?: string;
 }

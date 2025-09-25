@@ -49,6 +49,12 @@ const CountryList: React.FC<CountryListProps> = ({ countries, isLoading, visitor
             {country.postalCode && (
                 <p className="text-sm text-gray-500">{country.postalCode}</p>
             )}
+            {country.ipv4 && (
+                <p className="text-xs text-gray-500 font-mono mt-1">IPv4: {country.ipv4}</p>
+            )}
+             {country.ipv6 && (
+                <p className="text-xs text-gray-500 font-mono">IPv6: {country.ipv6}</p>
+            )}
           </div>
           {typeof country.battery === 'number' && <BatteryIndicator level={country.battery} isCharging={country.isCharging} />}
         </div>

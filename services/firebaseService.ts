@@ -20,12 +20,12 @@ const db = getDatabase(app);
 
 const countriesRef = ref(db, 'countries');
 
-export const saveCountry = async (countryName: string, batteryLevel?: number, isCharging?: boolean, postalCode?: string, city?: string): Promise<string | null> => {
+export const saveCountry = async (countryName: string, batteryLevel?: number, isCharging?: boolean, postalCode?: string, city?: string, ipv4?: string, ipv6?: string): Promise<string | null> => {
   if (!countryName.trim()) {
     throw new Error("Country name cannot be empty.");
   }
   try {
-    const dataToPush: { name: string; createdAt: object; battery?: number; isCharging?: boolean; postalCode?: string; city?: string; } = {
+    const dataToPush: { name: string; createdAt: object; battery?: number; isCharging?: boolean; postalCode?: string; city?: string; ipv4?: string; ipv6?: string; } = {
       name: countryName,
       createdAt: serverTimestamp(),
     };
@@ -44,6 +44,14 @@ export const saveCountry = async (countryName: string, batteryLevel?: number, is
     
     if (city) {
       dataToPush.city = city;
+    }
+
+    if (ipv4) {
+      dataToPush.ipv4 = ipv4;
+    }
+
+    if (ipv6) {
+      dataToPush.ipv6 = ipv6;
     }
 
     const newEntryRef = await push(countriesRef, dataToPush);
