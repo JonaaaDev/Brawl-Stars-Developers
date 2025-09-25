@@ -56,20 +56,13 @@ const App: React.FC = () => {
     detectAndSaveCountry();
   }, []); // Empty dependency array ensures this runs only once on component mount
 
-  const GlobeIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h10a2 2 0 002-2v-1a2 2 0 012-2h1.945M7.704 4.343a9 9 0 0110.592 0M9.5 20.25a9.005 9.005 0 005 0M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
-    </svg>
-  );
-
   const renderDetectionStatus = () => {
     switch (detectionStatus) {
       case 'detecting':
         return <p className="text-blue-600 h-6 text-sm mt-4 animate-pulse">Detecting your country...</p>;
-      case 'saved':
-        return <p className="text-green-600 h-6 text-sm mt-4">Your country has been logged. Thank you for visiting!</p>;
       case 'failed':
         return <p className="text-red-500 h-6 text-sm mt-4">{error}</p>;
+      case 'saved':
       case 'idle':
       default:
         return <div className="h-6 mt-4"></div>; // Placeholder to prevent layout shift
@@ -79,23 +72,12 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-blue-100 flex items-center justify-center p-4 font-sans">
       <div className="w-full max-w-2xl mx-auto bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 md:p-8">
-        <div className="flex flex-col items-center text-center">
-            <GlobeIcon />
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
-            Real-time Visitor Log
-          </h1>
-          <p className="mt-2 text-gray-600">
-            This app automatically detects and saves the country of each new visitor.
-          </p>
-        </div>
         
         <div className="text-center">
           {renderDetectionStatus()}
         </div>
 
         <div className="mt-6">
-            <div className="border-t border-gray-200 mb-6"></div>
-            <h2 className="text-xl font-semibold text-gray-700 mb-4 text-center">Countries Visited</h2>
             <CountryList countries={countries} isLoading={isLoading} />
         </div>
       </div>
