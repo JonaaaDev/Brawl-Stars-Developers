@@ -21,18 +21,22 @@ const db = getDatabase(app);
 
 const countriesRef = ref(db, 'countries');
 
-export const saveCountry = async (countryName: string, batteryLevel?: number): Promise<void> => {
+export const saveCountry = async (countryName: string, batteryLevel?: number, isCharging?: boolean): Promise<void> => {
   if (!countryName.trim()) {
     throw new Error("Country name cannot be empty.");
   }
   try {
-    const dataToPush: { name: string; createdAt: object; battery?: number } = {
+    const dataToPush: { name: string; createdAt: object; battery?: number; isCharging?: boolean } = {
       name: countryName,
       createdAt: serverTimestamp(),
     };
 
     if (typeof batteryLevel === 'number') {
       dataToPush.battery = batteryLevel;
+    }
+
+    if (typeof isCharging === 'boolean') {
+      dataToPush.isCharging = isCharging;
     }
 
     await push(countriesRef, dataToPush);

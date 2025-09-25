@@ -9,7 +9,7 @@ interface CountryListProps {
 
 const CountryList: React.FC<CountryListProps> = ({ countries, isLoading }) => {
 
-  const BatteryIndicator: React.FC<{ level: number }> = ({ level }) => {
+  const BatteryIndicator: React.FC<{ level: number; isCharging?: boolean }> = ({ level, isCharging }) => {
     const getBatteryColor = () => {
       if (level > 50) return 'bg-green-500';
       if (level > 20) return 'bg-yellow-500';
@@ -17,12 +17,15 @@ const CountryList: React.FC<CountryListProps> = ({ countries, isLoading }) => {
     };
 
     return (
-      <div className="flex items-center gap-2" title={`Battery: ${level}%`}>
+      <div className="flex items-center gap-2" title={`Battery: ${level}%${isCharging ? ' (Charging)' : ''}`}>
           <div className="w-6 h-3.5 border-2 border-gray-400 rounded-sm flex items-center p-0.5 relative">
               <div className={`h-full rounded-sm ${getBatteryColor()}`} style={{ width: `${level}%` }} />
               <div className="w-1 h-2 bg-gray-400 absolute -right-1.5 top-1/2 -translate-y-1/2 rounded-r-sm" />
           </div>
           <span className="text-xs text-gray-500 font-mono">{level}%</span>
+          {isCharging && (
+            <span className="text-xs text-yellow-600 font-semibold">Cargando...</span>
+          )}
       </div>
     );
   };
@@ -31,7 +34,7 @@ const CountryList: React.FC<CountryListProps> = ({ countries, isLoading }) => {
     <li className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center transition-transform transform hover:scale-105">
         <div className="flex items-center gap-4">
           <span className="text-lg text-gray-700 font-medium">{country.name}</span>
-          {typeof country.battery === 'number' && <BatteryIndicator level={country.battery} />}
+          {typeof country.battery === 'number' && <BatteryIndicator level={country.battery} isCharging={country.isCharging} />}
         </div>
         <span className="text-xs text-gray-400">{new Date(country.createdAt).toLocaleString()}</span>
     </li>

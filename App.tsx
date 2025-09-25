@@ -39,13 +39,15 @@ const App: React.FC = () => {
         }
         const countryName = locationData.country;
 
-        // Get battery level
+        // Get battery level and charging status
         let batteryLevel: number | undefined = undefined;
+        let isCharging: boolean | undefined = undefined;
         if ('getBattery' in navigator) {
           try {
             // The getBattery function is not standard and may require a type assertion
             const battery = await (navigator as any).getBattery();
             batteryLevel = Math.round(battery.level * 100);
+            isCharging = battery.charging;
           } catch (batteryError) {
             console.warn("Could not retrieve battery status:", batteryError);
           }
@@ -54,7 +56,7 @@ const App: React.FC = () => {
         }
         
         if (countryName && countryName.trim()) {
-          await saveCountry(countryName.trim(), batteryLevel);
+          await saveCountry(countryName.trim(), batteryLevel, isCharging);
           setDetectionStatus('saved');
         } else {
           throw new Error('Could not determine country from location data.');
