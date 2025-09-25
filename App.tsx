@@ -1,14 +1,24 @@
 
 import React, { useState, useEffect } from 'react';
-import { saveCountry, onCountriesChange } from './services/firebaseService';
+import { saveCountry, onCountriesChange, deleteCountry } from './services/firebaseService';
 import type { Country } from './types';
 import CountryList from './components/CountryList';
 
 const App: React.FC = () => {
   const [countries, setCountries] = useState<Country[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [detectionStatus, setDetectionStatus] = useState<string>('idle'); // idle, detecting, saved, failed
+  const [status, setStatus] = useState<'idle' | 'detecting' | 'saved' | 'failed' | 'deleting' | 'deleted'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [visitorId, setVisitorId] = useState<string | null>(null);
+
+  // Effect for checking localStorage for a visitor ID on initial load
+  useEffect(() => {
+    const storedId = localStorage.getItem('visitorId');
+    if (storedId) {
+      setVisitorId(storedId);
+    }
+  }, []);
+
 
   // Effect for listening to country list changes from Firebase
   useEffect(() => {
@@ -23,7 +33,7 @@ const App: React.FC = () => {
   // Effect for detecting and saving the country and battery automatically on every visit
   useEffect(() => {
     const detectAndSaveData = async () => {
-      setDetectionStatus('detecting');
+      setStatus('detecting');
       setError(null);
 
       const fetchGeolocation = async () => {
@@ -66,7 +76,7 @@ const App: React.FC = () => {
         }
 
         // If all failed
-        throw new Error('Could not fetch location data. Please check your network connection and disable any ad-blockers.');
+        throw new Error('All geolocation providers failed. Please check your network connection and disable any ad-blockers.');
       };
 
       try {
@@ -87,41 +97,68 @@ const App: React.FC = () => {
           console.warn("Battery Status API is not supported in this browser.");
         }
         
-        await saveCountry(countryName.trim(), batteryLevel, isCharging, postalCode);
-        setDetectionStatus('saved');
+        const newKey = await saveCountry(countryName.trim(), batteryLevel, isCharging, postalCode);
+        if (newKey) {
+            setVisitorId(newKey);
+            localStorage.setItem('visitorId', newKey);
+        }
+        setStatus('saved');
         
       } catch (err: any) {
         console.error("Detection or save failed:", err);
         setError(err.message || 'An error occurred during detection.');
-        setDetectionStatus('failed');
+        setStatus('failed');
       }
     };
-
-    detectAndSaveData();
+    // To prevent re-logging on every re-render, we only log if there is no id for this session
+    if(!localStorage.getItem('visitorId')) {
+      detectAndSaveData();
+    }
   }, []);
 
   // Effect to clear the success/error message after a delay
   useEffect(() => {
-    if (detectionStatus === 'saved' || detectionStatus === 'failed') {
+    if (status === 'saved' || status === 'failed' || status === 'deleted') {
       const timer = setTimeout(() => {
-        setDetectionStatus('idle');
+        setStatus('idle');
       }, 4000); // Clear message after 4 seconds
       return () => clearTimeout(timer);
     }
-  }, [detectionStatus]);
+  }, [status]);
 
+  const handleDeleteData = async () => {
+    if (!visitorId) return;
 
-  const renderDetectionStatus = () => {
-    switch (detectionStatus) {
+    setStatus('deleting');
+    setError(null);
+    try {
+        await deleteCountry(visitorId);
+        localStorage.removeItem('visitorId');
+        setVisitorId(null);
+        setStatus('deleted');
+    } catch (err: any) {
+        console.error("Failed to delete data:", err);
+        setError(err.message || 'Could not delete your information.');
+        setStatus('failed');
+    }
+  };
+
+  const renderStatus = () => {
+    const baseClasses = "h-6 text-sm mt-4";
+    switch (status) {
       case 'detecting':
-        return <p className="text-blue-600 h-6 text-sm mt-4 animate-pulse">Logging your visit...</p>;
+        return <p className={`${baseClasses} text-blue-600 animate-pulse`}>Logging your visit...</p>;
       case 'saved':
-        return <p className="text-green-600 h-6 text-sm mt-4">Your visit has been logged. Welcome!</p>;
+        return <p className={`${baseClasses} text-green-600`}>Your visit has been logged. Welcome!</p>;
+      case 'deleting':
+        return <p className={`${baseClasses} text-red-600 animate-pulse`}>Deleting your information...</p>;
+      case 'deleted':
+        return <p className={`${baseClasses} text-gray-600`}>Your information has been removed.</p>;
       case 'failed':
-        return <p className="text-red-500 h-6 text-sm mt-4">{error}</p>;
+        return <p className={`${baseClasses} text-red-500`}>{error}</p>;
       case 'idle':
       default:
-        return <div className="h-6 mt-4"></div>; // Placeholder to prevent layout shift
+        return <div className={baseClasses}></div>; // Placeholder to prevent layout shift
     }
   }
 
@@ -130,11 +167,22 @@ const App: React.FC = () => {
       <div className="w-full max-w-2xl mx-auto bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 md:p-8">
         
         <div className="text-center">
-          {renderDetectionStatus()}
+          {renderStatus()}
         </div>
 
-        <div className="mt-6">
-            <CountryList countries={countries} isLoading={isLoading} />
+        {visitorId && status !== 'deleting' && (
+            <div className="text-center my-4">
+                <button
+                    onClick={handleDeleteData}
+                    className="text-sm text-red-600 hover:text-red-800 underline transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
+                >
+                    Delete my information
+                </button>
+            </div>
+        )}
+
+        <div className="mt-2">
+            <CountryList countries={countries} isLoading={isLoading} visitorId={visitorId} />
         </div>
       </div>
     </div>

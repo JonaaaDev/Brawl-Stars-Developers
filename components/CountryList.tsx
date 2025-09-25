@@ -5,9 +5,10 @@ import type { Country } from '../types';
 interface CountryListProps {
   countries: Country[];
   isLoading: boolean;
+  visitorId: string | null;
 }
 
-const CountryList: React.FC<CountryListProps> = ({ countries, isLoading }) => {
+const CountryList: React.FC<CountryListProps> = ({ countries, isLoading, visitorId }) => {
 
   const BatteryIndicator: React.FC<{ level: number; isCharging?: boolean }> = ({ level, isCharging }) => {
     const getBatteryColor = () => {
@@ -30,11 +31,19 @@ const CountryList: React.FC<CountryListProps> = ({ countries, isLoading }) => {
     );
   };
 
-  const CountryCard: React.FC<{ country: Country }> = ({ country }) => (
-    <li className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center transition-transform transform hover:scale-105">
+  const CountryCard: React.FC<{ country: Country }> = ({ country }) => {
+    const isVisitorEntry = country.id === visitorId;
+    const cardClasses = `
+      bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center transition-all
+      ${isVisitorEntry ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'}
+    `;
+
+    return (
+      <li className={cardClasses}>
         <div className="flex items-center gap-4">
           <div>
             <span className="text-lg text-gray-700 font-medium">{country.name}</span>
+            {isVisitorEntry && <span className="text-xs font-semibold text-blue-600 ml-2">(This is you)</span>}
             {country.postalCode && (
                 <p className="text-sm text-gray-500">{country.postalCode}</p>
             )}
@@ -43,7 +52,8 @@ const CountryList: React.FC<CountryListProps> = ({ countries, isLoading }) => {
         </div>
         <span className="text-xs text-gray-400">{new Date(country.createdAt).toLocaleString()}</span>
     </li>
-  );
+    );
+  };
 
   if (isLoading) {
     return (

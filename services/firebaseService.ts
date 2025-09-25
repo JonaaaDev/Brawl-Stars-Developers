@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, push, onValue, off, serverTimestamp, DataSnapshot } from "firebase/database";
+import { getDatabase, ref, push, onValue, off, serverTimestamp, DataSnapshot, remove } from "firebase/database";
 import type { Country } from '../types';
 
 // Your web app's Firebase configuration from user request
@@ -21,7 +21,7 @@ const db = getDatabase(app);
 
 const countriesRef = ref(db, 'countries');
 
-export const saveCountry = async (countryName: string, batteryLevel?: number, isCharging?: boolean, postalCode?: string): Promise<void> => {
+export const saveCountry = async (countryName: string, batteryLevel?: number, isCharging?: boolean, postalCode?: string): Promise<string | null> => {
   if (!countryName.trim()) {
     throw new Error("Country name cannot be empty.");
   }
@@ -43,12 +43,24 @@ export const saveCountry = async (countryName: string, batteryLevel?: number, is
       dataToPush.postalCode = postalCode;
     }
 
-    await push(countriesRef, dataToPush);
+    const newEntryRef = await push(countriesRef, dataToPush);
+    return newEntryRef.key;
   } catch (error) {
     console.error("Error saving country to Firebase:", error);
     throw error;
   }
 };
+
+export const deleteCountry = async (id: string): Promise<void> => {
+  try {
+    const countryToDeleteRef = ref(db, `countries/${id}`);
+    await remove(countryToDeleteRef);
+  } catch (error) {
+    console.error("Error deleting country from Firebase:", error);
+    throw error;
+  }
+};
+
 
 export const onCountriesChange = (callback: (countries: Country[]) => void) => {
   const listener = onValue(countriesRef, (snapshot: DataSnapshot) => {
