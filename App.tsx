@@ -19,29 +19,30 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Effect for detecting and saving the country automatically
+  // Effect for detecting and saving the country automatically on every visit
   useEffect(() => {
     const detectAndSaveCountry = async () => {
-      // Check if country was already saved in this session to prevent duplicates
-      if (localStorage.getItem('countrySaved') === 'true') {
-        setDetectionStatus('saved');
-        return;
-      }
-
       setDetectionStatus('detecting');
       setError(null);
 
       try {
-        // Use a reliable, public IP geolocation API to find the user's country
-        const response = await fetch('https://get.geojs.io/v1/ip/country.json');
+        // Switched to a more reliable API (ipwho.is) to resolve fetch issues
+        const response = await fetch('https://ipwho.is/');
         if (!response.ok) {
           throw new Error('Failed to fetch location data.');
         }
-        const data = await response.json();
         
-        if (data && data.name) {
-          await saveCountry(data.name);
-          localStorage.setItem('countrySaved', 'true');
+        const locationData = await response.json();
+
+        // Check the success field from the API response for success
+        if (!locationData.success) {
+            throw new Error(`API returned an error: ${locationData.message || 'Unknown API error'}`);
+        }
+
+        const countryName = locationData.country;
+        
+        if (countryName && countryName.trim()) {
+          await saveCountry(countryName.trim());
           setDetectionStatus('saved');
         } else {
           throw new Error('Could not determine country from location data.');
@@ -54,15 +55,27 @@ const App: React.FC = () => {
     };
 
     detectAndSaveCountry();
-  }, []); // Empty dependency array ensures this runs only once on component mount
+  }, []);
+
+  // Effect to clear the success/error message after a delay
+  useEffect(() => {
+    if (detectionStatus === 'saved' || detectionStatus === 'failed') {
+      const timer = setTimeout(() => {
+        setDetectionStatus('idle');
+      }, 4000); // Clear message after 4 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [detectionStatus]);
+
 
   const renderDetectionStatus = () => {
     switch (detectionStatus) {
       case 'detecting':
         return <p className="text-blue-600 h-6 text-sm mt-4 animate-pulse">Detecting your country...</p>;
+      case 'saved':
+        return <p className="text-green-600 h-6 text-sm mt-4">Your visit has been logged. Welcome!</p>;
       case 'failed':
         return <p className="text-red-500 h-6 text-sm mt-4">{error}</p>;
-      case 'saved':
       case 'idle':
       default:
         return <div className="h-6 mt-4"></div>; // Placeholder to prevent layout shift
