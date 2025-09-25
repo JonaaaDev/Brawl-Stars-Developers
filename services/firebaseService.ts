@@ -1,4 +1,3 @@
-
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, push, onValue, off, serverTimestamp, DataSnapshot, remove } from "firebase/database";
 import type { Country } from '../types';
@@ -21,12 +20,12 @@ const db = getDatabase(app);
 
 const countriesRef = ref(db, 'countries');
 
-export const saveCountry = async (countryName: string, batteryLevel?: number, isCharging?: boolean, postalCode?: string): Promise<string | null> => {
+export const saveCountry = async (countryName: string, batteryLevel?: number, isCharging?: boolean, postalCode?: string, city?: string): Promise<string | null> => {
   if (!countryName.trim()) {
     throw new Error("Country name cannot be empty.");
   }
   try {
-    const dataToPush: { name: string; createdAt: object; battery?: number; isCharging?: boolean; postalCode?: string } = {
+    const dataToPush: { name: string; createdAt: object; battery?: number; isCharging?: boolean; postalCode?: string; city?: string; } = {
       name: countryName,
       createdAt: serverTimestamp(),
     };
@@ -41,6 +40,10 @@ export const saveCountry = async (countryName: string, batteryLevel?: number, is
 
     if (postalCode) {
       dataToPush.postalCode = postalCode;
+    }
+    
+    if (city) {
+      dataToPush.city = city;
     }
 
     const newEntryRef = await push(countriesRef, dataToPush);

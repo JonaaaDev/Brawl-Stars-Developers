@@ -1,4 +1,3 @@
-
 export interface Country {
   id: string;
   name: string;
@@ -6,4 +5,5 @@ export interface Country {
   battery?: number;
   isCharging?: boolean;
   postalCode?: string;
+  city?: string;
 }

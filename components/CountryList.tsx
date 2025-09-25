@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Country } from '../types';
 
@@ -44,6 +43,9 @@ const CountryList: React.FC<CountryListProps> = ({ countries, isLoading, visitor
           <div>
             <span className="text-lg text-gray-700 font-medium">{country.name}</span>
             {isVisitorEntry && <span className="text-xs font-semibold text-blue-600 ml-2">(This is you)</span>}
+            {isVisitorEntry && country.city && (
+                <p className="text-sm text-gray-600">{country.city}</p>
+            )}
             {country.postalCode && (
                 <p className="text-sm text-gray-500">{country.postalCode}</p>
             )}

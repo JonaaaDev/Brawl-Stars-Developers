@@ -1,13 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { saveCountry, onCountriesChange, deleteCountry } from './services/firebaseService';
 import type { Country } from './types';
 import CountryList from './components/CountryList';
 
+type Status = 'idle' | 'detecting' | 'detecting_precise' | 'saved' | 'failed' | 'deleting' | 'deleted';
+
 const App: React.FC = () => {
   const [countries, setCountries] = useState<Country[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [status, setStatus] = useState<'idle' | 'detecting' | 'saved' | 'failed' | 'deleting' | 'deleted'>('idle');
+  const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
   const [visitorId, setVisitorId] = useState<string | null>(null);
 
@@ -30,13 +31,56 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Effect for detecting and saving the country and battery automatically on every visit
+  // Effect for detecting and saving the country and battery automatically
   useEffect(() => {
     const detectAndSaveData = async () => {
       setStatus('detecting');
       setError(null);
 
-      const fetchGeolocation = async () => {
+      const getHighAccuracyLocation = (): Promise<{ countryName: string; postalCode?: string; city?: string; }> => {
+        return new Promise(async (resolve, reject) => {
+            if (!('geolocation' in navigator)) {
+                return reject(new Error('Geolocation is not supported by your browser.'));
+            }
+
+            setStatus('detecting_precise');
+            
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    try {
+                        // Using OpenStreetMap's free reverse geocoding service
+                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+                        if (!response.ok) throw new Error('Reverse geocoding failed');
+                        const data = await response.json();
+                        
+                        const address = data.address;
+                        if (address && address.country) {
+                            resolve({
+                                countryName: address.country,
+                                postalCode: address.postcode,
+                                city: address.city || address.town || address.village,
+                            });
+                        } else {
+                            reject(new Error('Could not determine location from coordinates.'));
+                        }
+                    } catch (error) {
+                        reject(error);
+                    }
+                },
+                (error) => {
+                    reject(new Error(`Geolocation error: ${error.message}`));
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0,
+                }
+            );
+        });
+      };
+
+      const fetchGeolocationFromIP = async () => {
         // Attempt 1: Primary provider (ipapi.co)
         try {
           const response = await fetch('https://ipapi.co/json/');
@@ -44,7 +88,7 @@ const App: React.FC = () => {
           const data = await response.json();
           if (data.error) throw new Error(`ipapi.co error: ${data.reason}`);
           if (data.country_name) {
-            return { countryName: data.country_name, postalCode: data.postal };
+            return { countryName: data.country_name, postalCode: data.postal, city: data.city };
           }
         } catch (err) {
           console.warn('Provider 1 (ipapi.co) failed:', err);
@@ -56,7 +100,7 @@ const App: React.FC = () => {
           if (!response.ok) throw new Error(`freegeoip.app responded with status: ${response.status}`);
           const data = await response.json();
           if (data.country_name) {
-            return { countryName: data.country_name, postalCode: data.zip_code };
+            return { countryName: data.country_name, postalCode: data.zip_code, city: data.city };
           }
         } catch (err) {
           console.warn('Provider 2 (freegeoip.app) failed:', err);
@@ -68,19 +112,27 @@ const App: React.FC = () => {
           if (!response.ok) throw new Error(`ipwho.is responded with status: ${response.status}`);
           const data = await response.json();
           if (data.success && data.country) {
-              return { countryName: data.country, postalCode: data.postal };
+              return { countryName: data.country, postalCode: data.postal, city: data.city };
           }
           if (!data.success) throw new Error(`ipwho.is error: ${data.message}`);
         } catch (err) {
           console.warn('Provider 3 (ipwho.is) failed:', err);
         }
 
-        // If all failed
         throw new Error('All geolocation providers failed. Please check your network connection and disable any ad-blockers.');
       };
 
       try {
-        const { countryName, postalCode } = await fetchGeolocation();
+        let locationData;
+        try {
+            locationData = await getHighAccuracyLocation();
+        } catch (highAccuracyError) {
+            console.warn('High accuracy location failed, falling back to IP-based.', highAccuracyError);
+            setStatus('detecting');
+            locationData = await fetchGeolocationFromIP();
+        }
+
+        const { countryName, postalCode, city } = locationData;
 
         // Get battery level and charging status
         let batteryLevel: number | undefined = undefined;
@@ -97,7 +149,7 @@ const App: React.FC = () => {
           console.warn("Battery Status API is not supported in this browser.");
         }
         
-        const newKey = await saveCountry(countryName.trim(), batteryLevel, isCharging, postalCode);
+        const newKey = await saveCountry(countryName.trim(), batteryLevel, isCharging, postalCode, city);
         if (newKey) {
             setVisitorId(newKey);
             localStorage.setItem('visitorId', newKey);
@@ -110,6 +162,7 @@ const App: React.FC = () => {
         setStatus('failed');
       }
     };
+    
     // To prevent re-logging on every re-render, we only log if there is no id for this session
     if(!localStorage.getItem('visitorId')) {
       detectAndSaveData();
@@ -146,6 +199,8 @@ const App: React.FC = () => {
   const renderStatus = () => {
     const baseClasses = "h-6 text-sm mt-4";
     switch (status) {
+      case 'detecting_precise':
+        return <p className={`${baseClasses} text-blue-600 animate-pulse`}>Requesting precise location...</p>;
       case 'detecting':
         return <p className={`${baseClasses} text-blue-600 animate-pulse`}>Logging your visit...</p>;
       case 'saved':
