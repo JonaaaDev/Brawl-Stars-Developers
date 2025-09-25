@@ -26,25 +26,57 @@ const App: React.FC = () => {
       setDetectionStatus('detecting');
       setError(null);
 
-      try {
-        // Fetch location data
-        const response = await fetch('https://ipwho.is/');
-        if (!response.ok) {
-          throw new Error('Failed to fetch location data.');
+      const fetchGeolocation = async () => {
+        // Attempt 1: Primary provider (ipapi.co)
+        try {
+          const response = await fetch('https://ipapi.co/json/');
+          if (!response.ok) throw new Error(`ipapi.co responded with status: ${response.status}`);
+          const data = await response.json();
+          if (data.error) throw new Error(`ipapi.co error: ${data.reason}`);
+          if (data.country_name) {
+            return { countryName: data.country_name, postalCode: data.postal };
+          }
+        } catch (err) {
+          console.warn('Provider 1 (ipapi.co) failed:', err);
+        }
+
+        // Attempt 2: Fallback provider (freegeoip.app)
+        try {
+          const response = await fetch('https://freegeoip.app/json/');
+          if (!response.ok) throw new Error(`freegeoip.app responded with status: ${response.status}`);
+          const data = await response.json();
+          if (data.country_name) {
+            return { countryName: data.country_name, postalCode: data.zip_code };
+          }
+        } catch (err) {
+          console.warn('Provider 2 (freegeoip.app) failed:', err);
         }
         
-        const locationData = await response.json();
-        if (!locationData.success) {
-            throw new Error(`API returned an error: ${locationData.message || 'Unknown API error'}`);
+        // Attempt 3: Final fallback provider (ipwho.is)
+        try {
+          const response = await fetch('https://ipwho.is/');
+          if (!response.ok) throw new Error(`ipwho.is responded with status: ${response.status}`);
+          const data = await response.json();
+          if (data.success && data.country) {
+              return { countryName: data.country, postalCode: data.postal };
+          }
+          if (!data.success) throw new Error(`ipwho.is error: ${data.message}`);
+        } catch (err) {
+          console.warn('Provider 3 (ipwho.is) failed:', err);
         }
-        const countryName = locationData.country;
+
+        // If all failed
+        throw new Error('Could not fetch location data. Please check your network connection and disable any ad-blockers.');
+      };
+
+      try {
+        const { countryName, postalCode } = await fetchGeolocation();
 
         // Get battery level and charging status
         let batteryLevel: number | undefined = undefined;
         let isCharging: boolean | undefined = undefined;
         if ('getBattery' in navigator) {
           try {
-            // The getBattery function is not standard and may require a type assertion
             const battery = await (navigator as any).getBattery();
             batteryLevel = Math.round(battery.level * 100);
             isCharging = battery.charging;
@@ -55,12 +87,9 @@ const App: React.FC = () => {
           console.warn("Battery Status API is not supported in this browser.");
         }
         
-        if (countryName && countryName.trim()) {
-          await saveCountry(countryName.trim(), batteryLevel, isCharging);
-          setDetectionStatus('saved');
-        } else {
-          throw new Error('Could not determine country from location data.');
-        }
+        await saveCountry(countryName.trim(), batteryLevel, isCharging, postalCode);
+        setDetectionStatus('saved');
+        
       } catch (err: any) {
         console.error("Detection or save failed:", err);
         setError(err.message || 'An error occurred during detection.');

@@ -5,4 +5,5 @@ export interface Country {
   createdAt: number;
   battery?: number;
   isCharging?: boolean;
+  postalCode?: string;
 }

@@ -33,7 +33,12 @@ const CountryList: React.FC<CountryListProps> = ({ countries, isLoading }) => {
   const CountryCard: React.FC<{ country: Country }> = ({ country }) => (
     <li className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center transition-transform transform hover:scale-105">
         <div className="flex items-center gap-4">
-          <span className="text-lg text-gray-700 font-medium">{country.name}</span>
+          <div>
+            <span className="text-lg text-gray-700 font-medium">{country.name}</span>
+            {country.postalCode && (
+                <p className="text-sm text-gray-500">{country.postalCode}</p>
+            )}
+          </div>
           {typeof country.battery === 'number' && <BatteryIndicator level={country.battery} isCharging={country.isCharging} />}
         </div>
         <span className="text-xs text-gray-400">{new Date(country.createdAt).toLocaleString()}</span>
