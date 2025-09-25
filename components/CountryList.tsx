@@ -9,9 +9,30 @@ interface CountryListProps {
 
 const CountryList: React.FC<CountryListProps> = ({ countries, isLoading }) => {
 
+  const BatteryIndicator: React.FC<{ level: number }> = ({ level }) => {
+    const getBatteryColor = () => {
+      if (level > 50) return 'bg-green-500';
+      if (level > 20) return 'bg-yellow-500';
+      return 'bg-red-500';
+    };
+
+    return (
+      <div className="flex items-center gap-2" title={`Battery: ${level}%`}>
+          <div className="w-6 h-3.5 border-2 border-gray-400 rounded-sm flex items-center p-0.5 relative">
+              <div className={`h-full rounded-sm ${getBatteryColor()}`} style={{ width: `${level}%` }} />
+              <div className="w-1 h-2 bg-gray-400 absolute -right-1.5 top-1/2 -translate-y-1/2 rounded-r-sm" />
+          </div>
+          <span className="text-xs text-gray-500 font-mono">{level}%</span>
+      </div>
+    );
+  };
+
   const CountryCard: React.FC<{ country: Country }> = ({ country }) => (
     <li className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center transition-transform transform hover:scale-105">
-        <span className="text-lg text-gray-700 font-medium">{country.name}</span>
+        <div className="flex items-center gap-4">
+          <span className="text-lg text-gray-700 font-medium">{country.name}</span>
+          {typeof country.battery === 'number' && <BatteryIndicator level={country.battery} />}
+        </div>
         <span className="text-xs text-gray-400">{new Date(country.createdAt).toLocaleString()}</span>
     </li>
   );
@@ -32,7 +53,7 @@ const CountryList: React.FC<CountryListProps> = ({ countries, isLoading }) => {
     return (
       <div className="text-center p-8 bg-gray-50 rounded-lg">
         <p className="text-gray-500">No countries have been added yet.</p>
-        <p className="text-gray-400 text-sm mt-1">Be the first to add one!</p>
+        <p className="text-gray-400 text-sm mt-1">Awaiting the first visitor!</p>
       </div>
     );
   }

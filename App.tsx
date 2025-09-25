@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { saveCountry, onCountriesChange } from './services/firebaseService';
 import type { Country } from './types';
@@ -19,30 +20,41 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Effect for detecting and saving the country automatically on every visit
+  // Effect for detecting and saving the country and battery automatically on every visit
   useEffect(() => {
-    const detectAndSaveCountry = async () => {
+    const detectAndSaveData = async () => {
       setDetectionStatus('detecting');
       setError(null);
 
       try {
-        // Switched to a more reliable API (ipwho.is) to resolve fetch issues
+        // Fetch location data
         const response = await fetch('https://ipwho.is/');
         if (!response.ok) {
           throw new Error('Failed to fetch location data.');
         }
         
         const locationData = await response.json();
-
-        // Check the success field from the API response for success
         if (!locationData.success) {
             throw new Error(`API returned an error: ${locationData.message || 'Unknown API error'}`);
         }
-
         const countryName = locationData.country;
+
+        // Get battery level
+        let batteryLevel: number | undefined = undefined;
+        if ('getBattery' in navigator) {
+          try {
+            // The getBattery function is not standard and may require a type assertion
+            const battery = await (navigator as any).getBattery();
+            batteryLevel = Math.round(battery.level * 100);
+          } catch (batteryError) {
+            console.warn("Could not retrieve battery status:", batteryError);
+          }
+        } else {
+          console.warn("Battery Status API is not supported in this browser.");
+        }
         
         if (countryName && countryName.trim()) {
-          await saveCountry(countryName.trim());
+          await saveCountry(countryName.trim(), batteryLevel);
           setDetectionStatus('saved');
         } else {
           throw new Error('Could not determine country from location data.');
@@ -54,7 +66,7 @@ const App: React.FC = () => {
       }
     };
 
-    detectAndSaveCountry();
+    detectAndSaveData();
   }, []);
 
   // Effect to clear the success/error message after a delay
@@ -71,7 +83,7 @@ const App: React.FC = () => {
   const renderDetectionStatus = () => {
     switch (detectionStatus) {
       case 'detecting':
-        return <p className="text-blue-600 h-6 text-sm mt-4 animate-pulse">Detecting your country...</p>;
+        return <p className="text-blue-600 h-6 text-sm mt-4 animate-pulse">Logging your visit...</p>;
       case 'saved':
         return <p className="text-green-600 h-6 text-sm mt-4">Your visit has been logged. Welcome!</p>;
       case 'failed':

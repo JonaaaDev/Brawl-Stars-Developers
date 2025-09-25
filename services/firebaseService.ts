@@ -21,15 +21,21 @@ const db = getDatabase(app);
 
 const countriesRef = ref(db, 'countries');
 
-export const saveCountry = async (countryName: string): Promise<void> => {
+export const saveCountry = async (countryName: string, batteryLevel?: number): Promise<void> => {
   if (!countryName.trim()) {
     throw new Error("Country name cannot be empty.");
   }
   try {
-    await push(countriesRef, {
+    const dataToPush: { name: string; createdAt: object; battery?: number } = {
       name: countryName,
       createdAt: serverTimestamp(),
-    });
+    };
+
+    if (typeof batteryLevel === 'number') {
+      dataToPush.battery = batteryLevel;
+    }
+
+    await push(countriesRef, dataToPush);
   } catch (error) {
     console.error("Error saving country to Firebase:", error);
     throw error;
