@@ -1,0 +1,5 @@
+{
+  "name": "Firebase Country Store",
+  "description": "A simple and elegant web application to store and display a list of countries in real-time using Firebase Realtime Database.",
+  "requestFramePermissions": []
+}
